@@ -23,11 +23,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # Auto-enables GitHub Pages for the repo (source: GitHub Actions) so the
-      # first run doesn't require toggling it by hand in Settings → Pages.
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - run: npm ci
       - run: npm run build
         env:

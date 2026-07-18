@@ -29,8 +29,12 @@ separately; this repo only contains the static frontend.
 ## Deployment (GitHub Pages)
 
 Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds the
-app and deploys `dist/` to GitHub Pages. The workflow auto-enables Pages
-(source: *GitHub Actions*).
+app and deploys `dist/` to GitHub Pages.
+
+**One-time setup:** enable Pages in the repo — Settings → Pages → Build and
+deployment → Source: **GitHub Actions**. (The `GITHUB_TOKEN` can't enable
+Pages automatically, so this first step is manual.) After that, every push to
+`main` deploys.
 
 - `vite.config.js` sets `base: '/Bathu-Content-Parser/'` to match the Pages
   sub-path, so make sure the repo name stays `Bathu-Content-Parser`.
