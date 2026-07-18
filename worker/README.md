@@ -3,9 +3,10 @@
 Cloudflare Worker that holds the Google Gemini credentials server-side and
 exposes one endpoint for the Question Generator frontend:
 
-- `POST /generate-questions` — `{ params: { questionsPerPage }, pdfText }` →
-  calls Gemini, returns `{ text, finishReason }`. The frontend parses/validates
-  the `{ questions: [...] }` JSON and retries as needed.
+- `POST /generate-questions` — `{ params: { questionsPerPage }, images: [base64 JPEG, …] }`
+  → sends the page images to Gemini (multimodal, so it reads scanned/Tamil PDFs)
+  and returns `{ text, finishReason }`. The frontend parses/validates the
+  `{ questions: [...] }` JSON and retries as needed.
 
 The API key never touches the frontend bundle — only this Worker sees it.
 

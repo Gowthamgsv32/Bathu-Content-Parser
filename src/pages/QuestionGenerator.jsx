@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { WORKER_URL } from '../config/api'
-import { extractPdfPages } from '../utils/pdfText'
+import { extractPdfPageImages } from '../utils/pdfImages'
 import { parseQuestions, countQuestions } from '../utils/questionParser'
 import { downloadBlob } from '../utils/download'
 
@@ -38,7 +38,7 @@ function QuestionGenerator() {
   const [pagesPerBatch, setPagesPerBatch] = useState('1')
 
   const [pdfFile, setPdfFile] = useState(null)
-  const [pdfPages, setPdfPages] = useState(null)
+  const [pdfImages, setPdfImages] = useState(null)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfError, setPdfError] = useState('')
 
@@ -54,9 +54,9 @@ function QuestionGenerator() {
 
   const batchSizeNum = Math.max(1, Number(pagesPerBatch) || 1)
   const plannedBatches = useMemo(() => {
-    if (!pdfPages) return []
-    return buildBatches(pdfPages.length, batchSizeNum)
-  }, [pdfPages, batchSizeNum])
+    if (!pdfImages) return []
+    return buildBatches(pdfImages.length, batchSizeNum)
+  }, [pdfImages, batchSizeNum])
 
   function log(tag, text) {
     setLogLines((prev) => [...prev, { ts: new Date().toLocaleTimeString(), tag, text }])
@@ -69,12 +69,12 @@ function QuestionGenerator() {
     const file = e.target.files?.[0]
     if (!file) return
     setPdfFile(file)
-    setPdfPages(null)
+    setPdfImages(null)
     setPdfError('')
     setPdfLoading(true)
     try {
-      const pages = await extractPdfPages(file)
-      setPdfPages(pages)
+      const images = await extractPdfPageImages(file)
+      setPdfImages(images)
     } catch (err) {
       setPdfError(`Failed to read PDF: ${err.message}`)
     } finally {
@@ -94,7 +94,7 @@ function QuestionGenerator() {
   async function handleGenerate() {
     setGeneralError('')
 
-    if (!pdfPages || pdfPages.length === 0) {
+    if (!pdfImages || pdfImages.length === 0) {
       setGeneralError('Please upload a PDF first.')
       return
     }
@@ -109,7 +109,7 @@ function QuestionGenerator() {
       return
     }
 
-    const batchGroups = buildBatches(pdfPages.length, batchSizeNum)
+    const batchGroups = buildBatches(pdfImages.length, batchSizeNum)
     const params = { questionsPerPage: qppNum }
 
     stopRef.current = false
@@ -127,7 +127,7 @@ function QuestionGenerator() {
       }))
     )
 
-    log('info', `Processing ${pdfPages.length} page(s) in ${batchGroups.length} batch(es), ${qppNum} question(s) per page.`)
+    log('info', `Processing ${pdfImages.length} page(s) in ${batchGroups.length} batch(es), ${qppNum} question(s) per page.`)
 
     for (let b = 0; b < batchGroups.length; b++) {
       if (stopRef.current) {
@@ -145,7 +145,7 @@ function QuestionGenerator() {
       setProgress(Math.round(((batchNum - 1) / batchGroups.length) * 100))
       log('accent', `BATCH ${batchNum}/${batchGroups.length} — Pages ${pageStart}–${pageEnd}`)
 
-      const batchText = indices.map((idx) => `===== PAGE ${idx + 1} =====\n${pdfPages[idx]}`).join('\n\n')
+      const batchImages = indices.map((idx) => pdfImages[idx])
 
       let success = false
       let lastErrorMessage = ''
@@ -158,7 +158,7 @@ function QuestionGenerator() {
           const res = await fetch(`${WORKER_URL}/generate-questions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ params, pdfText: batchText }),
+            body: JSON.stringify({ params, images: batchImages }),
           })
           const result = await res.json()
 
@@ -291,10 +291,10 @@ function QuestionGenerator() {
 
             {pdfLoading && <p className="field-hint">Reading PDF…</p>}
             {pdfError && <div className="alert alert-error">{pdfError}</div>}
-            {pdfPages && !pdfLoading && (
+            {pdfImages && !pdfLoading && (
               <p className="field-hint">
-                {pdfFile?.name} · {pdfPages.length} page{pdfPages.length === 1 ? '' : 's'} loaded · {plannedBatches.length} batch
-                {plannedBatches.length === 1 ? '' : 'es'} · ~{pdfPages.length * (Number(questionsPerPage) || 0)} question(s) total.
+                {pdfFile?.name} · {pdfImages.length} page{pdfImages.length === 1 ? '' : 's'} loaded · {plannedBatches.length} batch
+                {plannedBatches.length === 1 ? '' : 'es'} · ~{pdfImages.length * (Number(questionsPerPage) || 0)} question(s) total.
               </p>
             )}
 
@@ -308,7 +308,7 @@ function QuestionGenerator() {
                 type="button"
                 className="btn btn-primary"
                 onClick={handleGenerate}
-                disabled={running || !pdfPages || pdfLoading}
+                disabled={running || !pdfImages || pdfLoading}
               >
                 {running ? 'Generating…' : 'Generate Questions'}
               </button>

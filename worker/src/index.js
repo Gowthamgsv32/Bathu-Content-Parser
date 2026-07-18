@@ -43,7 +43,7 @@ const GENERATION_CONFIG = {
 // Google's side, so that key gets one quick retry before falling through to
 // the next key. Any other response (success or a real error) is returned
 // immediately.
-async function callGeminiWithFallback(promptText, apiKeys, generationConfig = GENERATION_CONFIG) {
+async function callGeminiWithFallback(parts, apiKeys, generationConfig = GENERATION_CONFIG) {
   let lastError = null
 
   for (const apiKey of apiKeys) {
@@ -56,7 +56,7 @@ async function callGeminiWithFallback(promptText, apiKeys, generationConfig = GE
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: promptText }] }],
+            contents: [{ parts }],
             generationConfig,
           }),
         }
@@ -91,13 +91,13 @@ async function callGeminiWithFallback(promptText, apiKeys, generationConfig = GE
   throw lastError || new Error('No Gemini API keys configured.')
 }
 
-// Turns one page-batch of PDF text into Health Inspector exam MCQs. Returns
-// the raw model text; the frontend parses/validates the { questions: [] } JSON.
+// Turns a page-batch (page images) into Health Inspector exam MCQs. Returns the
+// raw model text; the frontend parses/validates the { questions: [] } JSON.
 async function handleGenerateQuestions(request, env) {
-  const { params, pdfText } = await request.json()
+  const { params, images } = await request.json()
 
-  if (!pdfText) {
-    return json(env, { error: 'Missing PDF text.' }, 400)
+  if (!Array.isArray(images) || images.length === 0) {
+    return json(env, { error: 'Missing page images.' }, 400)
   }
 
   const apiKeys = parseApiKeys(env.GEMINI_API_KEY)
@@ -105,11 +105,15 @@ async function handleGenerateQuestions(request, env) {
     return json(env, { error: 'No Gemini API key configured.' }, 500)
   }
 
-  const prompt = buildQuestionPrompt(params || {}, pdfText)
+  const prompt = buildQuestionPrompt(params || {})
+  const parts = [
+    { text: prompt },
+    ...images.map((data) => ({ inlineData: { mimeType: 'image/jpeg', data } })),
+  ]
 
   let geminiRes
   try {
-    geminiRes = await callGeminiWithFallback(prompt, apiKeys)
+    geminiRes = await callGeminiWithFallback(parts, apiKeys)
   } catch (err) {
     return json(env, { error: `Gemini request failed on every API key: ${err.message}` }, 503)
   }
