@@ -1,11 +1,11 @@
 # Bathu Content Parser Worker
 
 Cloudflare Worker that holds the Google Gemini credentials server-side and
-exposes one endpoint for the TNPSC Parser frontend:
+exposes one endpoint for the Question Generator frontend:
 
-- `POST /generate-tnpsc` — `{ params, pdfText }` → calls Gemini, returns
-  `{ text, finishReason }` (the frontend splits/validates the FILE 1 / FILE 2
-  JSON and retries as needed).
+- `POST /generate-questions` — `{ params: { questionsPerPage }, pdfText }` →
+  calls Gemini, returns `{ text, finishReason }`. The frontend parses/validates
+  the `{ questions: [...] }` JSON and retries as needed.
 
 The API key never touches the frontend bundle — only this Worker sees it.
 

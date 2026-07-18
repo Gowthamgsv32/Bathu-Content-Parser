@@ -6,7 +6,7 @@ import './App.css'
 
 // Code-split: pdfjs-dist is heavy and only needed on this one page, so it
 // shouldn't bloat the initial bundle for every visitor.
-const TnpscParser = lazy(() => import('./pages/TnpscParser'))
+const QuestionGenerator = lazy(() => import('./pages/QuestionGenerator'))
 
 function App() {
   return (
@@ -14,10 +14,10 @@ function App() {
       <Route element={<DashboardLayout />}>
         <Route index element={<Dashboard />} />
         <Route
-          path="tnpsc-parser"
+          path="question-generator"
           element={
             <Suspense fallback={<div className="page"><p>Loading…</p></div>}>
-              <TnpscParser />
+              <QuestionGenerator />
             </Suspense>
           }
         />

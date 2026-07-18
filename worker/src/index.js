@@ -1,4 +1,4 @@
-import { buildTnpscPrompt } from './tnpscPrompts.js'
+import { buildQuestionPrompt } from './questionPrompts.js'
 
 const ALLOWED_ORIGIN_DEFAULT = 'https://gowthamgsv32.github.io'
 
@@ -31,9 +31,9 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-const DEFAULT_GENERATION_CONFIG = {
-  temperature: 0.7,
-  maxOutputTokens: 2048,
+const GENERATION_CONFIG = {
+  temperature: 0.4,
+  maxOutputTokens: 65536,
   thinkingConfig: { thinkingBudget: 0 },
 }
 
@@ -43,7 +43,7 @@ const DEFAULT_GENERATION_CONFIG = {
 // Google's side, so that key gets one quick retry before falling through to
 // the next key. Any other response (success or a real error) is returned
 // immediately.
-async function callGeminiWithFallback(promptText, apiKeys, generationConfig = DEFAULT_GENERATION_CONFIG) {
+async function callGeminiWithFallback(promptText, apiKeys, generationConfig = GENERATION_CONFIG) {
   let lastError = null
 
   for (const apiKey of apiKeys) {
@@ -91,19 +91,13 @@ async function callGeminiWithFallback(promptText, apiKeys, generationConfig = DE
   throw lastError || new Error('No Gemini API keys configured.')
 }
 
-const TNPSC_GENERATION_CONFIG = {
-  temperature: 0.15,
-  maxOutputTokens: 65536,
-  thinkingConfig: { thinkingBudget: 0 },
-}
-
-// TNPSC Parser: turns one page-batch of PDF text into a large compound
-// FILE 1 / FILE 2 JSON blob. The frontend splits, validates and retries.
-async function handleGenerateTnpsc(request, env) {
+// Turns one page-batch of PDF text into Health Inspector exam MCQs. Returns
+// the raw model text; the frontend parses/validates the { questions: [] } JSON.
+async function handleGenerateQuestions(request, env) {
   const { params, pdfText } = await request.json()
 
-  if (!params?.subjectCode || !pdfText) {
-    return json(env, { error: 'Missing params or PDF text.' }, 400)
+  if (!pdfText) {
+    return json(env, { error: 'Missing PDF text.' }, 400)
   }
 
   const apiKeys = parseApiKeys(env.GEMINI_API_KEY)
@@ -111,11 +105,11 @@ async function handleGenerateTnpsc(request, env) {
     return json(env, { error: 'No Gemini API key configured.' }, 500)
   }
 
-  const prompt = buildTnpscPrompt(params, pdfText)
+  const prompt = buildQuestionPrompt(params || {}, pdfText)
 
   let geminiRes
   try {
-    geminiRes = await callGeminiWithFallback(prompt, apiKeys, TNPSC_GENERATION_CONFIG)
+    geminiRes = await callGeminiWithFallback(prompt, apiKeys)
   } catch (err) {
     return json(env, { error: `Gemini request failed on every API key: ${err.message}` }, 503)
   }
@@ -144,8 +138,8 @@ export default {
     const url = new URL(request.url)
 
     try {
-      if (request.method === 'POST' && url.pathname === '/generate-tnpsc') {
-        return await handleGenerateTnpsc(request, env)
+      if (request.method === 'POST' && url.pathname === '/generate-questions') {
+        return await handleGenerateQuestions(request, env)
       }
       return json(env, { error: 'Not found.' }, 404)
     } catch (err) {

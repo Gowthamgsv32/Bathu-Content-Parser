@@ -3,7 +3,7 @@ import Icon from '../components/Icon'
 import { navItems } from '../config/navigation'
 
 const descriptions = {
-  '/tnpsc-parser': 'Turn textbook PDFs into TNPSC exam question JSON with Gemini.',
+  '/question-generator': 'Turn PDF pages into Health Inspector exam MCQs with Gemini.',
 }
 
 const tools = navItems.filter((item) => item.to !== '/')

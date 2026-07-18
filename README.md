@@ -1,9 +1,10 @@
 # Bathu Content Parser
 
-A React (Vite) web app for parsing content into exam-ready JSON. The first
-tool is the **TNPSC Parser**, ported from the CA-Admin-Web project: upload a
-textbook PDF and let Gemini turn it into TNPSC question JSON, batch by batch,
-with per-batch and ZIP downloads.
+A React (Vite) web app for turning PDFs into exam-ready question JSON. The
+tool is the **Question Generator**: upload a PDF and let Gemini generate
+**Health Inspector exam MCQs** from each page — question, options, correct
+answer and explanation — batch by batch, with per-batch and combined
+downloads. Configure questions-per-page and pages-per-batch.
 
 ## Tech stack
 
@@ -19,13 +20,13 @@ cp .env.example .env.local   # then set VITE_WORKER_URL
 npm run dev
 ```
 
-### TNPSC Parser backend
+### Question Generator backend
 
-The TNPSC Parser calls a Cloudflare Worker endpoint (`/generate-tnpsc`) that
-proxies Google Gemini. Set `VITE_WORKER_URL` to your deployed worker's URL.
-The worker lives in [`worker/`](worker/) in this repo and is deployed
-separately (Cloudflare) — see [`worker/README.md`](worker/README.md) for
-setup and deploy steps.
+The Question Generator calls a Cloudflare Worker endpoint (`/generate-questions`)
+that proxies Google Gemini. Set `VITE_WORKER_URL` to your deployed worker's URL
+(a default is also baked into `src/config/api.js`). The worker lives in
+[`worker/`](worker/) in this repo and is deployed separately (Cloudflare) — see
+[`worker/README.md`](worker/README.md) for setup and deploy steps.
 
 ## Deployment (GitHub Pages)
 
