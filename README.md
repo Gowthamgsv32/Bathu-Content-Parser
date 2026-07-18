@@ -23,8 +23,9 @@ npm run dev
 
 The TNPSC Parser calls a Cloudflare Worker endpoint (`/generate-tnpsc`) that
 proxies Google Gemini. Set `VITE_WORKER_URL` to your deployed worker's URL.
-The worker itself lives in the CA-Admin-Web repo (`worker/`) and is deployed
-separately; this repo only contains the static frontend.
+The worker lives in [`worker/`](worker/) in this repo and is deployed
+separately (Cloudflare) — see [`worker/README.md`](worker/README.md) for
+setup and deploy steps.
 
 ## Deployment (GitHub Pages)
 
