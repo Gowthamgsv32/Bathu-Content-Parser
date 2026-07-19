@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import DashboardLayout from './layout/DashboardLayout'
 import Dashboard from './pages/Dashboard'
+import Exam from './pages/Exam'
 import './App.css'
 
 // Code-split: pdfjs-dist is heavy and only needed on this one page, so it
@@ -21,6 +22,7 @@ function App() {
             </Suspense>
           }
         />
+        <Route path="exam" element={<Exam />} />
       </Route>
     </Routes>
   )

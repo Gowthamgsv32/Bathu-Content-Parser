@@ -4,6 +4,7 @@ import { navItems } from '../config/navigation'
 
 const descriptions = {
   '/question-generator': 'Turn PDF pages into Health Inspector exam MCQs with Gemini.',
+  '/exam': 'Take a self-test from a published question set and see your score.',
 }
 
 const tools = navItems.filter((item) => item.to !== '/')

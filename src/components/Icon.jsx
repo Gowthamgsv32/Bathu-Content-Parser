@@ -43,6 +43,13 @@ const paths = {
       <path d="M22 10v6" />
     </>
   ),
+  exam: (
+    <>
+      <path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z" />
+      <path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2" />
+      <path d="m9 14 2 2 4-4" />
+    </>
+  ),
 }
 
 function Icon({ name, size = 20 }) {
