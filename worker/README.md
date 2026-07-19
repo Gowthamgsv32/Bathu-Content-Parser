@@ -6,7 +6,9 @@ exposes one endpoint for the Question Generator frontend:
 - `POST /generate-questions` — `{ params: { questionsPerPage }, images: [base64 JPEG, …] }`
   → sends the page images to Gemini (multimodal, so it reads scanned/Tamil PDFs)
   and returns `{ text, finishReason }`. The frontend parses/validates the
-  `{ questions: [...] }` JSON and retries as needed.
+  `{ questions: [...] }` JSON and retries as needed. The model is set by the
+  `GEMINI_MODEL` var in `wrangler.toml` (default `gemini-3.5-flash`); change it
+  there or in the Cloudflare dashboard when a model is deprecated.
 - `POST /publish-questions` — `{ filename, data }` → commits `data` as JSON to
   the repo at `GITHUB_DIR/filename` (default `public/questions/`), overwriting
   if it exists, and returns `{ ok, path, rawUrl, pagesUrl, htmlUrl }`. Requires

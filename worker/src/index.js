@@ -55,7 +55,7 @@ const GENERATION_CONFIG = {
 // Google's side, so that key gets one quick retry before falling through to
 // the next key. Any other response (success or a real error) is returned
 // immediately.
-async function callGeminiWithFallback(parts, apiKeys, generationConfig = GENERATION_CONFIG) {
+async function callGeminiWithFallback(parts, apiKeys, model, generationConfig = GENERATION_CONFIG) {
   let lastError = null
 
   for (const apiKey of apiKeys) {
@@ -63,7 +63,7 @@ async function callGeminiWithFallback(parts, apiKeys, generationConfig = GENERAT
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -122,10 +122,11 @@ async function handleGenerateQuestions(request, env) {
     { text: prompt },
     ...images.map((data) => ({ inlineData: { mimeType: 'image/jpeg', data } })),
   ]
+  const model = env.GEMINI_MODEL || 'gemini-3.5-flash'
 
   let geminiRes
   try {
-    geminiRes = await callGeminiWithFallback(parts, apiKeys)
+    geminiRes = await callGeminiWithFallback(parts, apiKeys, model)
   } catch (err) {
     return json(env, { error: `Gemini request failed on every API key: ${err.message}` }, 503)
   }

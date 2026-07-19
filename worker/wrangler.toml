@@ -7,6 +7,12 @@ compatibility_date = "2025-01-01"
 # custom domain or different GitHub user/repo.
 ALLOWED_ORIGIN = "https://gowthamgsv32.github.io"
 
+# Gemini model to call. Change this here (or in the Cloudflare dashboard) when
+# a model is deprecated — no code change needed. Options as of 2026:
+#   gemini-3.5-flash       (newest, best quality; higher cost)
+#   gemini-2.5-flash-lite  (older, cheapest; still available)
+GEMINI_MODEL = "gemini-3.5-flash"
+
 # Where the "Publish to GitHub" button commits the combined questions JSON.
 GITHUB_OWNER = "Gowthamgsv32"
 GITHUB_REPO = "Bathu-Content-Parser"
