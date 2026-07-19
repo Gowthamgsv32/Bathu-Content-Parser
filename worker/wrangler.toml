@@ -7,7 +7,16 @@ compatibility_date = "2025-01-01"
 # custom domain or different GitHub user/repo.
 ALLOWED_ORIGIN = "https://gowthamgsv32.github.io"
 
+# Where the "Publish to GitHub" button commits the combined questions JSON.
+GITHUB_OWNER = "Gowthamgsv32"
+GITHUB_REPO = "Bathu-Content-Parser"
+GITHUB_BRANCH = "main"
+GITHUB_DIR = "public/questions"
+
 # Secrets are NOT set here. Set them with:
 #   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put GITHUB_TOKEN
 # GEMINI_API_KEY may be a single key or a comma-separated list of keys —
 # the worker falls back to the next key on rate-limit/overload.
+# GITHUB_TOKEN is a fine-grained PAT with Contents: Read and write on the repo
+# above; it lets the worker commit the published questions file.

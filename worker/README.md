@@ -7,6 +7,10 @@ exposes one endpoint for the Question Generator frontend:
   → sends the page images to Gemini (multimodal, so it reads scanned/Tamil PDFs)
   and returns `{ text, finishReason }`. The frontend parses/validates the
   `{ questions: [...] }` JSON and retries as needed.
+- `POST /publish-questions` — `{ filename, data }` → commits `data` as JSON to
+  the repo at `GITHUB_DIR/filename` (default `public/questions/`), overwriting
+  if it exists, and returns `{ ok, path, rawUrl, pagesUrl, htmlUrl }`. Requires
+  a `GITHUB_TOKEN` secret (fine-grained PAT, Contents: Read and write).
 
 The API key never touches the frontend bundle — only this Worker sees it.
 

@@ -49,6 +49,10 @@ function QuestionGenerator() {
   const [statusText, setStatusText] = useState('Ready — set the counts and upload a PDF.')
   const [batches, setBatches] = useState([])
 
+  const [publishing, setPublishing] = useState(false)
+  const [publishResult, setPublishResult] = useState(null)
+  const [publishError, setPublishError] = useState('')
+
   const stopRef = useRef(false)
   const logRef = useRef(null)
 
@@ -243,6 +247,33 @@ function QuestionGenerator() {
     downloadBlob(JSON.stringify({ questions: allQuestions }, null, 2), `${base}-questions.json`, 'application/json')
   }
 
+  async function handlePublish() {
+    if (allQuestions.length === 0) return
+    setPublishing(true)
+    setPublishError('')
+    setPublishResult(null)
+    try {
+      const res = await fetch(`${WORKER_URL}/publish-questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: `${base}.json`,
+          data: { questions: allQuestions },
+        }),
+      })
+      const result = await res.json()
+      if (result.error) {
+        setPublishError(result.error)
+      } else {
+        setPublishResult(result)
+      }
+    } catch (err) {
+      setPublishError(err.message)
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   return (
     <div className="page">
       <section className="welcome-card">
@@ -360,8 +391,33 @@ function QuestionGenerator() {
                   <button type="button" className="btn btn-ghost" onClick={handleDownloadAll} disabled={allQuestions.length === 0}>
                     Download All (JSON)
                   </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handlePublish}
+                    disabled={allQuestions.length === 0 || publishing || running}
+                  >
+                    {publishing ? 'Publishing…' : 'Publish to GitHub'}
+                  </button>
                 </div>
               </div>
+
+              {(publishError || publishResult) && (
+                <div style={{ padding: '0 20px 8px' }}>
+                  {publishError && <div className="alert alert-error">Publish failed: {publishError}</div>}
+                  {publishResult && (
+                    <div className="alert alert-success">
+                      Published {allQuestions.length} question(s) to <code>{publishResult.path}</code>.
+                      <br />
+                      Exam-screen URL (live after the site redeploys):{' '}
+                      <a href={publishResult.pagesUrl} target="_blank" rel="noreferrer">{publishResult.pagesUrl}</a>
+                      <br />
+                      Raw URL (available now):{' '}
+                      <a href={publishResult.rawUrl} target="_blank" rel="noreferrer">{publishResult.rawUrl}</a>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 20px' }}>
                 {batches.map((b) => (

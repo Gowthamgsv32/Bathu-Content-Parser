@@ -31,6 +31,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// UTF-8 safe base64 (btoa alone mangles multi-byte chars like Tamil). Chunked
+// so large payloads don't overflow the call stack.
+function toBase64Utf8(str) {
+  const bytes = new TextEncoder().encode(str)
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
 const GENERATION_CONFIG = {
   temperature: 0.4,
   maxOutputTokens: 65536,
@@ -133,6 +145,79 @@ async function handleGenerateQuestions(request, env) {
   return json(env, { text: rawText, finishReason })
 }
 
+// Commits a JSON file to the GitHub repo (public/questions by default) using a
+// GITHUB_TOKEN secret. Overwrites the file if it already exists.
+async function handlePublishQuestions(request, env) {
+  const { filename, data } = await request.json()
+
+  if (!filename || !data) {
+    return json(env, { error: 'Missing filename or data.' }, 400)
+  }
+
+  const token = env.GITHUB_TOKEN
+  if (!token) {
+    return json(env, { error: 'No GitHub token configured on the worker (set GITHUB_TOKEN).' }, 500)
+  }
+
+  const owner = env.GITHUB_OWNER || 'Gowthamgsv32'
+  const repo = env.GITHUB_REPO || 'Bathu-Content-Parser'
+  const branch = env.GITHUB_BRANCH || 'main'
+  const dir = env.GITHUB_DIR || 'public/questions'
+
+  const safeName = String(filename).replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `${dir}/${safeName}`
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`
+  const ghHeaders = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'bathu-content-parser',
+    'Content-Type': 'application/json',
+  }
+
+  // Look up the existing file's blob sha so we overwrite instead of failing.
+  let sha
+  try {
+    const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, { headers: ghHeaders })
+    if (getRes.status === 200) {
+      sha = (await getRes.json()).sha
+    } else if (getRes.status !== 404) {
+      return json(env, { error: `GitHub read failed (${getRes.status}): ${await getRes.text()}` }, 502)
+    }
+  } catch (err) {
+    return json(env, { error: `GitHub read error: ${err.message}` }, 502)
+  }
+
+  const content = toBase64Utf8(JSON.stringify(data, null, 2))
+  const putRes = await fetch(apiUrl, {
+    method: 'PUT',
+    headers: ghHeaders,
+    body: JSON.stringify({
+      message: `Publish questions: ${safeName}`,
+      content,
+      branch,
+      ...(sha ? { sha } : {}),
+    }),
+  })
+
+  if (!putRes.ok) {
+    return json(env, { error: `GitHub write failed (${putRes.status}): ${await putRes.text()}` }, 502)
+  }
+
+  const body = await putRes.json()
+  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`
+  const pagesPath = dir.replace(/^public\//, '')
+  const pagesUrl = `https://${owner.toLowerCase()}.github.io/${repo}/${pagesPath}/${safeName}`
+
+  return json(env, {
+    ok: true,
+    path,
+    rawUrl,
+    pagesUrl,
+    htmlUrl: body.content?.html_url || null,
+    commit: body.commit?.sha || null,
+  })
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
@@ -144,6 +229,9 @@ export default {
     try {
       if (request.method === 'POST' && url.pathname === '/generate-questions') {
         return await handleGenerateQuestions(request, env)
+      }
+      if (request.method === 'POST' && url.pathname === '/publish-questions') {
+        return await handlePublishQuestions(request, env)
       }
       return json(env, { error: 'Not found.' }, 404)
     } catch (err) {
