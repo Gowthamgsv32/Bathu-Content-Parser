@@ -18,9 +18,16 @@ function Exam() {
   const [setsLoading, setSetsLoading] = useState(true)
   const [setsError, setSetsError] = useState('')
   const [selectedUrl, setSelectedUrl] = useState('')
+
+  // The full set that's currently selected (loaded so we know how many
+  // questions there are before starting).
+  const [loadedQuestions, setLoadedQuestions] = useState([])
+  const [loadingSet, setLoadingSet] = useState(false)
+
+  const [rangeFrom, setRangeFrom] = useState('1')
+  const [rangeTo, setRangeTo] = useState('1')
   const [shuffle, setShuffle] = useState(true)
 
-  const [loadingExam, setLoadingExam] = useState(false)
   const [setName, setSetName] = useState('')
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState([])
@@ -44,23 +51,50 @@ function Exam() {
     refreshSets()
   }, [])
 
-  async function handleStart() {
-    if (!selectedUrl) return
-    setLoadingExam(true)
-    setSetsError('')
-    try {
-      const loaded = await loadQuestionSet(selectedUrl)
-      const qs = shuffle ? shuffled(loaded) : loaded
-      setQuestions(qs)
-      setAnswers(Array.from({ length: qs.length }, () => null))
-      setCurrent(0)
-      setSetName(sets.find((s) => s.downloadUrl === selectedUrl)?.name || 'Exam')
-      setPhase('exam')
-    } catch (err) {
-      setSetsError(err.message)
-    } finally {
-      setLoadingExam(false)
+  // Load the selected set so we know its size and can offer a question range.
+  useEffect(() => {
+    if (!selectedUrl) {
+      setLoadedQuestions([])
+      return
     }
+    let cancelled = false
+    setLoadingSet(true)
+    setSetsError('')
+    loadQuestionSet(selectedUrl)
+      .then((loaded) => {
+        if (cancelled) return
+        setLoadedQuestions(loaded)
+        setRangeFrom('1')
+        setRangeTo(String(loaded.length))
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setLoadedQuestions([])
+        setSetsError(err.message)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSet(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedUrl])
+
+  const total = loadedQuestions.length
+  const from = Math.min(Math.max(1, Number(rangeFrom) || 1), total || 1)
+  const to = Math.min(Math.max(from, Number(rangeTo) || total), total || 1)
+  const selectedCount = total === 0 ? 0 : to - from + 1
+
+  function handleStart() {
+    if (loadedQuestions.length === 0) return
+    const slice = loadedQuestions.slice(from - 1, to)
+    const qs = shuffle ? shuffled(slice) : slice
+    setQuestions(qs)
+    setAnswers(Array.from({ length: qs.length }, () => null))
+    setCurrent(0)
+    setSetName(sets.find((s) => s.downloadUrl === selectedUrl)?.name || 'Exam')
+    setPhase('exam')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function selectOption(qIndex, option) {
@@ -73,10 +107,15 @@ function Exam() {
 
   const answeredCount = answers.filter((a) => a !== null).length
 
-  const score = useMemo(() => {
-    if (phase !== 'result') return 0
-    return questions.reduce((sum, q, i) => sum + (answers[i] === q.correctAnswer ? 1 : 0), 0)
-  }, [phase, questions, answers])
+  const stats = useMemo(() => {
+    const totalQ = questions.length
+    const correct = questions.reduce((sum, q, i) => sum + (answers[i] === q.correctAnswer ? 1 : 0), 0)
+    const attempted = answers.filter((a) => a !== null).length
+    const wrong = attempted - correct
+    const skipped = totalQ - attempted
+    const pct = totalQ === 0 ? 0 : Math.round((correct / totalQ) * 100)
+    return { totalQ, correct, wrong, skipped, attempted, pct }
+  }, [questions, answers])
 
   function handleSubmit() {
     setPhase('result')
@@ -103,7 +142,7 @@ function Exam() {
       <div className="page">
         <section className="welcome-card">
           <h2>Exam</h2>
-          <p>Pick a published question set and test yourself. Sets come from the Question Generator's “Publish to GitHub”.</p>
+          <p>Pick a published question set, choose how many questions to attempt, and test yourself.</p>
         </section>
 
         <section className="form-card">
@@ -135,14 +174,48 @@ function Exam() {
                 </select>
               </label>
 
+              <div className="field">
+                <span>Question range {loadingSet ? '(loading…)' : total > 0 ? `(1–${total} available)` : ''}</span>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>From</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={total || 1}
+                      value={rangeFrom}
+                      onChange={(e) => setRangeFrom(e.target.value)}
+                      disabled={loadingSet || total === 0}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>To</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={total || 1}
+                      value={rangeTo}
+                      onChange={(e) => setRangeTo(e.target.value)}
+                      disabled={loadingSet || total === 0}
+                    />
+                  </label>
+                </div>
+                {total > 0 && <p className="field-hint">{selectedCount} question(s) selected (numbers {from}–{to}).</p>}
+              </div>
+
               <label className="qa-checkbox">
                 <input type="checkbox" checked={shuffle} onChange={(e) => setShuffle(e.target.checked)} />
                 <span>Shuffle question order</span>
               </label>
 
               <div className="form-actions">
-                <button type="button" className="btn btn-primary" onClick={handleStart} disabled={loadingExam || !selectedUrl}>
-                  {loadingExam ? 'Loading…' : 'Start Exam'}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleStart}
+                  disabled={loadingSet || total === 0}
+                >
+                  {loadingSet ? 'Loading…' : `Start Exam (${selectedCount})`}
                 </button>
               </div>
             </>
@@ -234,15 +307,38 @@ function Exam() {
   }
 
   // ---- RESULT PHASE ----
-  const pct = Math.round((score / questions.length) * 100)
   return (
     <div className="page">
       <section className="welcome-card">
         <h2>Result — {setName}</h2>
         <p>
-          You scored <strong>{score}</strong> / {questions.length} ({pct}%).
+          You scored <strong>{stats.correct}</strong> / {stats.totalQ} ({stats.pct}%).
         </p>
-        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 6 }}>
+
+        <div className="stat-row">
+          <div className="stat-tile">
+            <span className="stat-value">{stats.totalQ}</span>
+            <span className="stat-label">Total</span>
+          </div>
+          <div className="stat-tile stat-tile--ok">
+            <span className="stat-value">{stats.correct}</span>
+            <span className="stat-label">Correct</span>
+          </div>
+          <div className="stat-tile stat-tile--bad">
+            <span className="stat-value">{stats.wrong}</span>
+            <span className="stat-label">Wrong</span>
+          </div>
+          <div className="stat-tile stat-tile--muted">
+            <span className="stat-value">{stats.skipped}</span>
+            <span className="stat-label">Skipped</span>
+          </div>
+          <div className="stat-tile stat-tile--accent">
+            <span className="stat-value">{stats.pct}%</span>
+            <span className="stat-label">Score</span>
+          </div>
+        </div>
+
+        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
           <button type="button" className="btn btn-ghost" onClick={handleRetake}>
             Retake
           </button>
@@ -264,7 +360,7 @@ function Exam() {
               <li key={i} className="qa-item">
                 <p className="qa-question">
                   {q.question}{' '}
-                  <span className={correct ? 'exam-badge exam-badge--ok' : 'exam-badge exam-badge--bad'}>
+                  <span className={correct ? 'exam-badge exam-badge--ok' : chosen === null ? 'exam-badge exam-badge--muted' : 'exam-badge exam-badge--bad'}>
                     {chosen === null ? 'Skipped' : correct ? 'Correct' : 'Wrong'}
                   </span>
                 </p>

@@ -998,3 +998,61 @@
   color: #d64545;
   background: rgba(240, 82, 82, 0.12);
 }
+
+.exam-badge--muted {
+  color: var(--text-muted);
+  background: var(--border);
+}
+
+/* Result stat tiles */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-h);
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.stat-tile--ok .stat-value {
+  color: #1f9d5a;
+}
+
+.stat-tile--bad .stat-value {
+  color: #d64545;
+}
+
+.stat-tile--muted .stat-value {
+  color: var(--text-muted);
+}
+
+.stat-tile--accent {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.stat-tile--accent .stat-value {
+  color: var(--accent);
+}
